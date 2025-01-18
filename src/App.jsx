@@ -4,9 +4,9 @@ import StarRating from "./StarRating";
 function App() {
   const [movies, setMovies] = useState([]);
   const [query, setQuery] = useState("");
-  const [watched, setWatched] = useState(function() {
-    const value = localStorage.getItem()
-    return value;
+  const [watched, setWatched] = useState(function () {
+    const returnValue = localStorage.getItem("watched");
+    return JSON.parse(returnValue);
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -388,6 +388,7 @@ function WatchedMoviesList({ watched, handleDeleteWatched }) {
 }
 
 function WatchedSummary({ watched }) {
+  
   const avgImdbRating = watched.map((movie) => movie.imdbRating);
   const avgUserRating = watched.map((movie) => movie.userRating);
   const avgRuntime = watched.map((movie) => movie.runtime);
