@@ -237,7 +237,7 @@ function MovieDetails({ selectId, onCloseMovie, onAddWatched, watched }) {
         try {
           setIsLoading(true);
           const res = await fetch(
-            `http://www.omdbapi.com/?apikey=c917fa45&i=${selectId}`
+            `https://www.omdbapi.com/?apikey=c917fa45&i=${selectId}`
           );
 
           if (!res.ok) throw new Error("Something wrong with the server");
