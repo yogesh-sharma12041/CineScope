@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import StarRating from "./StarRating";
-import { useMovie } from "../useMovie";
+import { useMovie } from "./useMovie";
+import { useLocalStorageState } from "./useLocalStorageState";
+import { useKey } from "./useKey";
 
 function App() {
   const [selectId, setSelectId] = useState(null);
-  const [watched, setWatched] = useState(function () {
-    const returnValue = localStorage.getItem("watched");
-    return JSON.parse(returnValue);
-  });
- 
+  const [query, setQuery] = useState("")
+
+  const [watched, setWatched] = useLocalStorageState([], "watched");
 
   function handleSelectMovie(id) {
     setSelectId((selectId) => (id === selectId ? null : id));
@@ -26,14 +26,8 @@ function App() {
     setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
   }
 
-  useEffect(
-    function () {
-      localStorage.setItem("watched", JSON.stringify(watched));
-    },
-    [watched]
-  );
 
-useMovie(query)
+ const {movies, error, isLoading} = useMovie(query)
 
   return (
     <>
@@ -51,10 +45,7 @@ useMovie(query)
           {!error && !isLoading && (
             <MovieList
               movies={movies}
-              setMovies={setMovies}
-              setIsLoading={setIsLoading}
               handleSelectMovie={handleSelectMovie}
-              onCloseMovie={onCloseMovie}
             />
           )}
         </Box>
@@ -98,23 +89,12 @@ function Logo() {
 function Search({ query, setQuery }) {
   const inputEl = useRef(null);
 
-  useEffect(function () {
+  useKey("Enter", function () {
 
-   if (document.activeElement === inputEl) return
-
-    const callback = (e) => {
-      if(e.code === 'Enter') {
-        inputEl.current.focus();
-        setQuery("")
-      }
-    }
-
-    document.addEventListener("keydown", callback);
-
-    return () => {
-      document.removeEventListener("keydown", callback)
-    }
-  }, [setQuery]);
+    if (document.activeElement === inputEl) return
+         inputEl.current.focus();
+         setQuery("")
+     })
 
   return (
     <div>
@@ -282,21 +262,7 @@ function MovieDetails({ selectId, onCloseMovie, onAddWatched, watched }) {
     [selectId]
   );
 
-  useEffect(
-    function () {
-      function callback(e) {
-        if (e.code === "Escape") {
-          onCloseMovie();
-        }
-      }
-      document.addEventListener("keydown", callback);
-
-      return function () {
-        document.removeEventListener("keydown", callback);
-      };
-    },
-    [onCloseMovie]
-  );
+useKey("Escape", onCloseMovie);
 
   useEffect(
     function () {
