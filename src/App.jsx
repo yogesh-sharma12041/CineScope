@@ -146,7 +146,7 @@ function Box({ children }) {
   }
 
   return (
-    <div className="bg-[#25292D] w-[40vw] h-[80vh] relative">
+    <div className="bg-[#25292D] w-[40vw] h-[80vh] relative max-sm:flex max-sm:flex-wrap">
       <button
         onClick={handleClick}
         className="w-[42px] h-[42px] rounded-full bg-black text-white text-xl absolute right-7 top-2 flex items-center justify-center"
