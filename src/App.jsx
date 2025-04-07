@@ -6,8 +6,7 @@ import { useKey } from "./useKey";
 
 function App() {
   const [selectId, setSelectId] = useState(null);
-  const [query, setQuery] = useState("")
-
+  const [query, setQuery] = useState("");
   const [watched, setWatched] = useLocalStorageState([], "watched");
 
   function handleSelectMovie(id) {
@@ -26,8 +25,7 @@ function App() {
     setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
   }
 
-
- const {movies, error, isLoading} = useMovie(query)
+  const { movies, error, isLoading } = useMovie(query);
 
   return (
     <>
@@ -39,7 +37,6 @@ function App() {
 
       <Main>
         <Box>
-          {/* {isLoading ? <Loader/> : <MovieList movies={movies} setMovies={setMovies} setIsLoading={setIsLoading} />} */}
           {isLoading && <Loader />}
           {error && <ErrorMessage message={error} />}
           {!error && !isLoading && (
@@ -76,7 +73,7 @@ function App() {
 
 function Navbar({ children }) {
   return (
-    <div className="w-[100vw] h-[10vh] bg-blue-600 flex items-center justify-around">
+    <div className="w-full h-auto bg-blue-600 flex flex-col sm:flex-row sm:items-center justify-between px-4 py-2 gap-2 sm:gap-0">
       {children}
     </div>
   );
@@ -90,21 +87,18 @@ function Search({ query, setQuery }) {
   const inputEl = useRef(null);
 
   useKey("Enter", function () {
-
-    if (document.activeElement === inputEl) return
-         inputEl.current.focus();
-         setQuery("")
-     })
+    if (document.activeElement === inputEl.current) return;
+    inputEl.current.focus();
+    setQuery("");
+  });
 
   return (
-    <div>
+    <div className="w-full sm:w-auto flex justify-center">
       <input
         type="text"
         placeholder="Search Movies..."
-        className="w-[28rem] px-2 py-1 rounded-md"
-        onChange={(e) => {
-          setQuery(e.target.value);
-        }}
+        className="w-full sm:w-[28rem] px-2 py-1 rounded-md"
+        onChange={(e) => setQuery(e.target.value)}
         value={query}
         ref={inputEl}
       />
@@ -124,7 +118,7 @@ function Found({ movies }) {
 
 function ErrorMessage({ message }) {
   return (
-    <p className="absolute top-[120px] left-[180px] text-white text-2xl">
+    <p className="mt-4 text-white text-2xl text-center">
       ⚠ {message}
     </p>
   );
@@ -132,7 +126,7 @@ function ErrorMessage({ message }) {
 
 function Main({ children }) {
   return (
-    <div className="flex justify-around items-center bg-[#17191C] h-[90vh]">
+    <div className="flex flex-col lg:flex-row justify-around items-start lg:items-center bg-[#17191C] min-h-[90vh] gap-4 p-4">
       {children}
     </div>
   );
@@ -146,10 +140,10 @@ function Box({ children }) {
   }
 
   return (
-    <div className="bg-[#25292D] w-[40vw] h-[80vh] relative">
+    <div className="bg-[#25292D] w-full lg:w-[40vw] min-h-[50vh] lg:h-[80vh] relative rounded-xl">
       <button
         onClick={handleClick}
-        className="w-[42px] h-[42px] rounded-full bg-black text-white text-xl absolute right-7 top-2 flex items-center justify-center"
+        className="w-[42px] h-[42px] rounded-full bg-black text-white text-xl absolute right-4 top-2 flex items-center justify-center"
       >
         {isOpen ? "-" : "+"}
       </button>
@@ -160,15 +154,15 @@ function Box({ children }) {
 
 function Loader() {
   return (
-    <p className="text-2xl text-white relative top-[120px] left-[240px]">
-      Loading...
-    </p>
+    <div className="flex justify-center items-center h-[40vh]">
+      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
   );
 }
 
 function MovieList({ movies, handleSelectMovie }) {
   return (
-    <ul className="bg-[#25292D] w-[40vw] h-[80vh] overflow-y-auto divide-y divide-slate-700">
+    <ul className="bg-[#25292D] w-full lg:w-[40vw] max-h-[80vh] overflow-y-auto divide-y divide-slate-700 rounded-xl">
       {movies?.map((movie) => (
         <Movie
           movie={movie}
@@ -184,242 +178,16 @@ function Movie({ movie, handleSelectMovie }) {
   return (
     <li
       onClick={() => handleSelectMovie(movie.imdbID)}
-      className="flex justify-center items-center gap-5 m-2 hover:bg-slate-700 cursor-pointer"
+      className="flex flex-col sm:flex-row justify-center items-center gap-5 m-2 hover:bg-slate-700 cursor-pointer p-2"
     >
       <img
         src={movie.Poster}
         alt={`${movie.Title} poster`}
         className="w-[6rem] h-[5rem]"
       />
-      <div className="text-white w-[30rem] h-[5rem]">
-        <h3>{movie.Title}</h3>
-        <p>🗓 {movie.Year}</p>
-      </div>
-    </li>
-  );
-}
-
-function MovieDetails({ selectId, onCloseMovie, onAddWatched, watched }) {
-  const [movie, setMovie] = useState({});
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [userRating, setUserRating] = useState(0);
-
-  const countRef = useRef(0);
-
-  useEffect(function(){
-    if(userRating) countRef.current = countRef.current + 1;
-  }, [userRating])
-
-  function handleAdd() {
-    const addWatchedMovie = {
-      imdbID: selectId,
-      title: movie.Title,
-      poster: movie.Poster,
-      year: movie.Year,
-      userRating,
-      imdbRating: Number(movie.imdbRating),
-      runtime: Number(movie.Runtime.split(" ").at(0)),
-      movieRatingDecision: countRef.current
-    };
-    onAddWatched(addWatchedMovie);
-    onCloseMovie();
-  }
-
-  const isWatched = watched.map((movie) => movie.imdbID).includes(selectId);
-  const watchedUserRating = watched.find(
-    (movie) => movie.imdbID === selectId
-  )?.userRating;
-
-  useEffect(
-    function () {
-      async function getMoviesDetails() {
-        try {
-          setIsLoading(true);
-          const res = await fetch(
-            `https://www.omdbapi.com/?apikey=c917fa45&i=${selectId}`
-          );
-
-          if (!res.ok) throw new Error("Something wrong with the server");
-
-          const data = await res.json();
-          console.log(data);
-
-          if (data.Response === "False")
-            throw new Error("Movie Details not Found");
-
-          setMovie(data);
-
-          console.log(movie);
-        } catch (error) {
-          setError(error.message);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-      getMoviesDetails();
-    },
-    [selectId]
-  );
-
-useKey("Escape", onCloseMovie);
-
-  useEffect(
-    function () {
-      if (!movie.Title) return;
-      document.title = `Movie | ${movie.Title}`;
-
-      return function () {
-        document.title = "CineScope";
-      };
-    },
-    [movie.Title]
-  );
-
-  return (
-    <>
-      {error && <ErrorMessage />}
-      {isLoading ? (
-        <Loader />
-      ) : (
-        <div>
-          <button
-            className=" rounded-[100%] w-[24px] h-[24px] p-4 text-2xl flex justify-center items-center bg-white text-black"
-            onClick={onCloseMovie}
-          >
-            &larr;
-          </button>
-          <header className="flex gap-5">
-            <img
-              className="inline-block w-[150px] h-[150px] mb-[34px] p-2"
-              src={movie.Poster}
-              alt={`${movie.Title} poster`}
-            />
-
-            <div className="inline-block text-white">
-              <h2 className="text-3xl mb-3">{movie.Title}</h2>
-              <p className="mb-2">
-                {movie.Released} &bull; {movie.Runtime}
-              </p>
-              <p className="mb-2">{movie.Genre}</p>
-              <p className="mb-2">
-                <span>⭐</span>
-                {movie.imdbRating} IMDb Rating
-              </p>
-            </div>
-          </header>
-
-          <section className="text-white mx-8 flex flex-col gap-2">
-            <div className="flex items-center flex-col p-6 bg-[#373c41] rounded-lg">
-              {isWatched ? (
-                <p>This movie rating is ⭐ {watchedUserRating}</p>
-              ) : (
-                <>
-                  <StarRating
-                    maxRating={10}
-                    size={24}
-                    color="#fcc419"
-                    onSetRating={setUserRating}
-                  />
-                  {userRating > 0 && (
-                    <button
-                      onClick={handleAdd}
-                      className=" px-20 mt-4 py-2 font-semibold rounded-3xl bg-blue-700 hover:bg-blue-600"
-                    >
-                      + Add to list
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-            <p>
-              <em>{movie.Plot}</em>
-            </p>
-            <p>Starring : {movie.Actors}</p>
-            <p>Directed by : {movie.Director}</p>
-          </section>
-        </div>
-      )}
-    </>
-  );
-}
-
-function WatchedMoviesList({ watched, handleDeleteWatched }) {
-  return (
-    <ul className="overflow-y-auto divide-y divide-slate-700">
-      {watched.map((movie) => (
-        <WatchedMovie
-          movie={movie}
-          key={movie.imdbID}
-          handleDeleteWatched={handleDeleteWatched}
-        />
-      ))}
-    </ul>
-  );
-}
-
-function WatchedSummary({ watched }) {
-  const avgImdbRating = watched.map((movie) => movie.imdbRating);
-  const avgUserRating = watched.map((movie) => movie.userRating);
-  const avgRuntime = watched.map((movie) => movie.runtime);
-
-  return (
-    <div className="flex flex-col gap-2 p-4 rounded-xl bg-[#2A3335] drop-shadow-xl">
-      <h2 className="text-white text-md font-semibold uppercase">
-        Movies you watched
-      </h2>
-      <div className="flex gap-7 text-white">
-        <p>
-          <span>#️⃣</span>
-          <span>{watched.length} movies</span>
-        </p>
-        <p>
-          <span>⭐️</span>
-          <span>{avgImdbRating}</span>
-        </p>
-        <p>
-          <span>🌟</span>
-          <span>{avgUserRating}</span>
-        </p>
-        <p>
-          <span>⏳</span>
-          <span>{avgRuntime} min</span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function WatchedMovie({ movie, handleDeleteWatched }) {
-  return (
-    <li className="flex gap-2">
-      <img
-        className="w-[90px] h-[90px] p-2"
-        src={movie.poster}
-        alt={`${movie.title} Poster`}
-      />
-      <div className="flex flex-col justify-between">
-        <h3 className=" mt-2 text-white text-lg">{movie.title}</h3>
-        <div className="text-white flex gap-3 mb-2">
-          <p>
-            <span>⭐️</span>
-            <span>{movie.imdbRating}</span>
-          </p>
-          <p>
-            <span>🌟</span>
-            <span>{movie.userRating}</span>
-          </p>
-          <p>
-            <span>⏳</span>
-            <span>{movie.runtime} min</span>
-          </p>
-        </div>
-        <button
-          onClick={() => handleDeleteWatched(movie.imdbID)}
-          className="rounded-full bg-red-600 h-[24px] w-[24px] m-2"
-        >
-          X
-        </button>
+      <div className="text-white text-center sm:text-left">
+        <h3 className="text-lg">{movie.Title}</h3>
+        <p className="text-sm">🗓 {movie.Year}</p>
       </div>
     </li>
   );
