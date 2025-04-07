@@ -1,231 +1,427 @@
-// App.jsx
 import { useEffect, useRef, useState } from "react";
-import StarRating from './StarRating'
+import StarRating from "./StarRating";
+import { useMovie } from "./useMovie";
+import { useLocalStorageState } from "./useLocalStorageState";
+import { useKey } from "./useKey";
 
 function App() {
-  const [selectedId, setSelectedId] = useState(null);
-  const [watched, setWatched] = useState([]);
-  const [query, setQuery] = useState("");
-  const [movies, setMovies] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectId, setSelectId] = useState(null);
+  const [query, setQuery] = useState("")
 
-  const handleSelectMovie = (id) => {
-    setSelectedId(id === selectedId ? null : id);
-  };
+  const [watched, setWatched] = useLocalStorageState([], "watched");
 
-  const handleAddWatched = (movie) => {
+  function handleSelectMovie(id) {
+    setSelectId((selectId) => (id === selectId ? null : id));
+  }
+
+  function onCloseMovie() {
+    setSelectId(null);
+  }
+
+  function handleAddWatched(movie) {
     setWatched((watched) => [...watched, movie]);
-  };
+  }
 
-  useEffect(() => {
-    const fetchMovies = async () => {
-      if (!query) return;
-      setIsLoading(true);
-      try {
-        const res = await fetch(
-          `https://www.omdbapi.com/?apikey=c917fa45&s=${query}`
-        );
-        const data = await res.json();
-        setMovies(data.Search || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchMovies();
-  }, [query]);
+  function handleDeleteWatched(id) {
+    setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
+  }
+
+
+ const {movies, error, isLoading} = useMovie(query)
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <nav className="w-full bg-blue-700 p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">🎬 CineScope</h1>
-        <input
-          type="text"
-          placeholder="Search movies..."
-          className="px-3 py-1 rounded text-black w-1/2"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <span>Found {movies.length}</span>
-      </nav>
+    <>
+      <Navbar>
+        <Logo />
+        <Search query={query} setQuery={setQuery} />
+        <Found movies={movies} />
+      </Navbar>
 
-      <main className="flex flex-col md:flex-row justify-around p-4 gap-4">
-        <section className="bg-[#1f2937] rounded p-4 w-full md:w-1/2 max-h-[80vh] overflow-y-auto">
-          {isLoading ? (
-            <div className="text-center text-2xl">Loading...</div>
-          ) : (
-            <ul className="space-y-4">
-              {movies.map((movie) => (
-                <li
-                  key={movie.imdbID}
-                  className="flex items-center gap-4 hover:bg-slate-700 p-2 rounded cursor-pointer"
-                  onClick={() => handleSelectMovie(movie.imdbID)}
-                >
-                  <img
-                    src={movie.Poster}
-                    alt={movie.Title}
-                    className="w-16 h-20 object-cover"
-                  />
-                  <div>
-                    <h3 className="text-lg">{movie.Title}</h3>
-                    <p>{movie.Year}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+      <Main>
+        <Box>
+          {/* {isLoading ? <Loader/> : <MovieList movies={movies} setMovies={setMovies} setIsLoading={setIsLoading} />} */}
+          {isLoading && <Loader />}
+          {error && <ErrorMessage message={error} />}
+          {!error && !isLoading && (
+            <MovieList
+              movies={movies}
+              handleSelectMovie={handleSelectMovie}
+            />
           )}
-        </section>
+        </Box>
 
-        <section className="bg-[#1f2937] rounded p-4 w-full md:w-1/2 max-h-[80vh] overflow-y-auto">
-          {selectedId ? (
+        <Box>
+          {selectId ? (
             <MovieDetails
-              imdbID={selectedId}
-              onClose={() => setSelectedId(null)}
+              handleSelectMovie={handleSelectMovie}
+              onCloseMovie={onCloseMovie}
+              selectId={selectId}
               onAddWatched={handleAddWatched}
               watched={watched}
             />
-          ) : watched.length > 0 ? (
-            <WatchedSummary watched={watched} />
           ) : (
-            <p className="text-center">No movie selected or watched yet.</p>
+            <>
+              <WatchedSummary watched={watched} />
+              <WatchedMoviesList
+                watched={watched}
+                handleDeleteWatched={handleDeleteWatched}
+              />
+            </>
           )}
-        </section>
-      </main>
+        </Box>
+      </Main>
+    </>
+  );
+}
+
+function Navbar({ children }) {
+  return (
+    <div className="w-[100vw] h-[10vh] bg-blue-600 flex items-center justify-around">
+      {children}
     </div>
   );
 }
 
-function MovieDetails({ imdbID, onClose, onAddWatched, watched }) {
-  const [movie, setMovie] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [userRating, setUserRating] = useState(0);
+function Logo() {
+  return <div className="text-white text-2xl">CineScope🍿</div>;
+}
 
-  useEffect(() => {
-    const fetchMovieDetails = async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch(
-          `https://www.omdbapi.com/?apikey=c917fa45&i=${imdbID}`
-        );
-        const data = await res.json();
-        setMovie(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchMovieDetails();
-  }, [imdbID]);
+function Search({ query, setQuery }) {
+  const inputEl = useRef(null);
 
-  const handleAdd = () => {
-    const movieData = {
-      imdbID,
-      title: movie.Title,
-      poster: movie.Poster,
-      year: movie.Year,
-      imdbRating: movie.imdbRating,
-      runtime: parseInt(movie.Runtime),
-      userRating,
-    };
-    onAddWatched(movieData);
-    onClose();
-  };
+  useKey("Enter", function () {
 
-  if (isLoading || !movie) return <div>Loading details...</div>;
-
-  const alreadyWatched = watched.find((m) => m.imdbID === imdbID);
+    if (document.activeElement === inputEl) return
+         inputEl.current.focus();
+         setQuery("")
+     })
 
   return (
     <div>
-      <button
-        onClick={onClose}
-        className="mb-2 text-sm text-white bg-red-600 px-2 py-1 rounded"
-      >
-        ← Back
-      </button>
-      <div className="flex flex-col md:flex-row gap-4">
-        <img
-          src={movie.Poster}
-          alt={movie.Title}
-          className="w-40 h-60 object-cover"
-        />
-        <div>
-          <h2 className="text-2xl mb-2">{movie.Title}</h2>
-          <p className="mb-1">
-            {movie.Released} | {movie.Runtime}
-          </p>
-          <p className="mb-1">{movie.Genre}</p>
-          <p className="mb-1">⭐ {movie.imdbRating}</p>
+      <input
+        type="text"
+        placeholder="Search Movies..."
+        className="w-[28rem] px-2 py-1 rounded-md"
+        onChange={(e) => {
+          setQuery(e.target.value);
+        }}
+        value={query}
+        ref={inputEl}
+      />
+    </div>
+  );
+}
 
-          {alreadyWatched ? (
-            <p className="mt-2">Already watched and rated ⭐ {alreadyWatched.userRating}</p>
-          ) : (
-            <div className="mt-2">
-              <StarRating
-                maxRating={10}
-                size={24}
-                color="#facc15"
-                onSetRating={setUserRating}
-              />
-              {userRating > 0 && (
-                <button
-                  onClick={handleAdd}
-                  className="mt-3 bg-blue-600 px-4 py-2 rounded text-white"
-                >
-                  + Add to Watched
-                </button>
+function Found({ movies }) {
+  return (
+    <div>
+      <p className="text-white text-xl">
+        Found <strong>{movies.length}</strong> results
+      </p>
+    </div>
+  );
+}
+
+function ErrorMessage({ message }) {
+  return (
+    <p className="absolute top-[120px] left-[180px] text-white text-2xl">
+      ⚠ {message}
+    </p>
+  );
+}
+
+function Main({ children }) {
+  return (
+    <div className="flex justify-around items-center bg-[#17191C] h-[90vh]">
+      {children}
+    </div>
+  );
+}
+
+function Box({ children }) {
+  const [isOpen, setIsOpen] = useState(true);
+
+  function handleClick() {
+    setIsOpen((open) => !open);
+  }
+
+  return (
+    <div className="bg-[#25292D] w-[40vw] h-[80vh] relative">
+      <button
+        onClick={handleClick}
+        className="w-[42px] h-[42px] rounded-full bg-black text-white text-xl absolute right-7 top-2 flex items-center justify-center"
+      >
+        {isOpen ? "-" : "+"}
+      </button>
+      {isOpen && children}
+    </div>
+  );
+}
+
+function Loader() {
+  return (
+    <p className="text-2xl text-white relative top-[120px] left-[240px]">
+      Loading...
+    </p>
+  );
+}
+
+function MovieList({ movies, handleSelectMovie }) {
+  return (
+    <ul className="bg-[#25292D] w-[40vw] h-[80vh] overflow-y-auto divide-y divide-slate-700">
+      {movies?.map((movie) => (
+        <Movie
+          movie={movie}
+          key={movie.imdbID}
+          handleSelectMovie={handleSelectMovie}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function Movie({ movie, handleSelectMovie }) {
+  return (
+    <li
+      onClick={() => handleSelectMovie(movie.imdbID)}
+      className="flex justify-center items-center gap-5 m-2 hover:bg-slate-700 cursor-pointer"
+    >
+      <img
+        src={movie.Poster}
+        alt={`${movie.Title} poster`}
+        className="w-[6rem] h-[5rem]"
+      />
+      <div className="text-white w-[30rem] h-[5rem]">
+        <h3>{movie.Title}</h3>
+        <p>🗓 {movie.Year}</p>
+      </div>
+    </li>
+  );
+}
+
+function MovieDetails({ selectId, onCloseMovie, onAddWatched, watched }) {
+  const [movie, setMovie] = useState({});
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [userRating, setUserRating] = useState(0);
+
+  const countRef = useRef(0);
+
+  useEffect(function(){
+    if(userRating) countRef.current = countRef.current + 1;
+  }, [userRating])
+
+  function handleAdd() {
+    const addWatchedMovie = {
+      imdbID: selectId,
+      title: movie.Title,
+      poster: movie.Poster,
+      year: movie.Year,
+      userRating,
+      imdbRating: Number(movie.imdbRating),
+      runtime: Number(movie.Runtime.split(" ").at(0)),
+      movieRatingDecision: countRef.current
+    };
+    onAddWatched(addWatchedMovie);
+    onCloseMovie();
+  }
+
+  const isWatched = watched.map((movie) => movie.imdbID).includes(selectId);
+  const watchedUserRating = watched.find(
+    (movie) => movie.imdbID === selectId
+  )?.userRating;
+
+  useEffect(
+    function () {
+      async function getMoviesDetails() {
+        try {
+          setIsLoading(true);
+          const res = await fetch(
+            `https://www.omdbapi.com/?apikey=c917fa45&i=${selectId}`
+          );
+
+          if (!res.ok) throw new Error("Something wrong with the server");
+
+          const data = await res.json();
+          console.log(data);
+
+          if (data.Response === "False")
+            throw new Error("Movie Details not Found");
+
+          setMovie(data);
+
+          console.log(movie);
+        } catch (error) {
+          setError(error.message);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+      getMoviesDetails();
+    },
+    [selectId]
+  );
+
+useKey("Escape", onCloseMovie);
+
+  useEffect(
+    function () {
+      if (!movie.Title) return;
+      document.title = `Movie | ${movie.Title}`;
+
+      return function () {
+        document.title = "CineScope";
+      };
+    },
+    [movie.Title]
+  );
+
+  return (
+    <>
+      {error && <ErrorMessage />}
+      {isLoading ? (
+        <Loader />
+      ) : (
+        <div>
+          <button
+            className=" rounded-[100%] w-[24px] h-[24px] p-4 text-2xl flex justify-center items-center bg-white text-black"
+            onClick={onCloseMovie}
+          >
+            &larr;
+          </button>
+          <header className="flex gap-5">
+            <img
+              className="inline-block w-[150px] h-[150px] mb-[34px] p-2"
+              src={movie.Poster}
+              alt={`${movie.Title} poster`}
+            />
+
+            <div className="inline-block text-white">
+              <h2 className="text-3xl mb-3">{movie.Title}</h2>
+              <p className="mb-2">
+                {movie.Released} &bull; {movie.Runtime}
+              </p>
+              <p className="mb-2">{movie.Genre}</p>
+              <p className="mb-2">
+                <span>⭐</span>
+                {movie.imdbRating} IMDb Rating
+              </p>
+            </div>
+          </header>
+
+          <section className="text-white mx-8 flex flex-col gap-2">
+            <div className="flex items-center flex-col p-6 bg-[#373c41] rounded-lg">
+              {isWatched ? (
+                <p>This movie rating is ⭐ {watchedUserRating}</p>
+              ) : (
+                <>
+                  <StarRating
+                    maxRating={10}
+                    size={24}
+                    color="#fcc419"
+                    onSetRating={setUserRating}
+                  />
+                  {userRating > 0 && (
+                    <button
+                      onClick={handleAdd}
+                      className=" px-20 mt-4 py-2 font-semibold rounded-3xl bg-blue-700 hover:bg-blue-600"
+                    >
+                      + Add to list
+                    </button>
+                  )}
+                </>
               )}
             </div>
-          )}
-
-          <p className="mt-4 italic">{movie.Plot}</p>
-          <p className="mt-1">🎭 {movie.Actors}</p>
-          <p className="mt-1">🎬 {movie.Director}</p>
+            <p>
+              <em>{movie.Plot}</em>
+            </p>
+            <p>Starring : {movie.Actors}</p>
+            <p>Directed by : {movie.Director}</p>
+          </section>
         </div>
-      </div>
-    </div>
+      )}
+    </>
+  );
+}
+
+function WatchedMoviesList({ watched, handleDeleteWatched }) {
+  return (
+    <ul className="overflow-y-auto divide-y divide-slate-700">
+      {watched.map((movie) => (
+        <WatchedMovie
+          movie={movie}
+          key={movie.imdbID}
+          handleDeleteWatched={handleDeleteWatched}
+        />
+      ))}
+    </ul>
   );
 }
 
 function WatchedSummary({ watched }) {
-  const avg = (arr) =>
-    arr.reduce((acc, cur) => acc + cur, 0) / arr.length || 0;
+  const avgImdbRating = watched.map((movie) => movie.imdbRating);
+  const avgUserRating = watched.map((movie) => movie.userRating);
+  const avgRuntime = watched.map((movie) => movie.runtime);
 
   return (
-    <div>
-      <h2 className="text-xl mb-4">Watched Movies</h2>
-      <ul className="space-y-4">
-        {watched.map((movie) => (
-          <li key={movie.imdbID} className="flex gap-3">
-            <img
-              src={movie.poster}
-              alt={movie.title}
-              className="w-16 h-20 object-cover"
-            />
-            <div>
-              <h3>{movie.title}</h3>
-              <p>⭐ {movie.imdbRating}</p>
-              <p>🌟 {movie.userRating}</p>
-              <p>⏱ {movie.runtime} min</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-4 text-white text-sm">
+    <div className="flex flex-col gap-2 p-4 rounded-xl bg-[#2A3335] drop-shadow-xl">
+      <h2 className="text-white text-md font-semibold uppercase">
+        Movies you watched
+      </h2>
+      <div className="flex gap-7 text-white">
         <p>
-          Average IMDb Rating: {avg(watched.map((m) => Number(m.imdbRating))).toFixed(2)}
+          <span>#️⃣</span>
+          <span>{watched.length} movies</span>
         </p>
         <p>
-          Average User Rating: {avg(watched.map((m) => m.userRating)).toFixed(2)}
+          <span>⭐️</span>
+          <span>{avgImdbRating}</span>
         </p>
         <p>
-          Average Runtime: {avg(watched.map((m) => m.runtime)).toFixed(2)} mins
+          <span>🌟</span>
+          <span>{avgUserRating}</span>
+        </p>
+        <p>
+          <span>⏳</span>
+          <span>{avgRuntime} min</span>
         </p>
       </div>
     </div>
+  );
+}
+
+function WatchedMovie({ movie, handleDeleteWatched }) {
+  return (
+    <li className="flex gap-2">
+      <img
+        className="w-[90px] h-[90px] p-2"
+        src={movie.poster}
+        alt={`${movie.title} Poster`}
+      />
+      <div className="flex flex-col justify-between">
+        <h3 className=" mt-2 text-white text-lg">{movie.title}</h3>
+        <div className="text-white flex gap-3 mb-2">
+          <p>
+            <span>⭐️</span>
+            <span>{movie.imdbRating}</span>
+          </p>
+          <p>
+            <span>🌟</span>
+            <span>{movie.userRating}</span>
+          </p>
+          <p>
+            <span>⏳</span>
+            <span>{movie.runtime} min</span>
+          </p>
+        </div>
+        <button
+          onClick={() => handleDeleteWatched(movie.imdbID)}
+          className="rounded-full bg-red-600 h-[24px] w-[24px] m-2"
+        >
+          X
+        </button>
+      </div>
+    </li>
   );
 }
 
